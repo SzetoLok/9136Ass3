@@ -1,0 +1,4 @@
+4,5
+1,1,mountain,olympus mons,21
+2,4,lake,eridania,10
+3,2,crater,huygens,45

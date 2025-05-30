@@ -1,0 +1,6 @@
+6,5
+0,1,mountain,fuji,22
+5,2,lake,blue lake,10
+4,0,crater, fucking crater ,45
+3,2,crater, fucking crater ,45
+2,4,crater, fucking crater ,45
