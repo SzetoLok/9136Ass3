@@ -142,7 +142,13 @@ class BankAccount:
         # Add the account number to the set of banned accounts.
         BankAccount.banned_accounts.add(self.account_number)
 
-    def isbanned(self) -> bool:
+        # Assert that the account is marked as banned and present in banned_accounts.
+        assert self.banned and self.account_number in BankAccount.banned_accounts, (
+            f"ban_account failed: banned={self.banned}, "
+            f"banned_accounts={BankAccount.banned_accounts}"
+        )
+
+    def is_banned(self) -> bool:
         """
         Check if the account is banned.
 
@@ -168,7 +174,7 @@ class BankAccount:
         """
 
         # Prevent deposit if the account is banned.
-        if self.isbanned():
+        if self.is_banned():
             raise CustomOperationError("Operation not allowed: account is banned.")
 
         # Ensure the deposit amount is a number.
@@ -211,7 +217,7 @@ class BankAccount:
         """
 
         # Prevent withdrawal if the account is banned.
-        if self.isbanned():
+        if self.is_banned():
             raise CustomOperationError("Operation not allowed: account is banned.")
 
         # Ensure the withdrawal amount is a number.
@@ -268,7 +274,7 @@ class BankAccount:
             raise CustomTypeError("Target must be a BankAccount instance.")
 
         # Prevent transfer if either account is banned.
-        if self.isbanned() or target_account.isbanned():
+        if self.is_banned() or target_account.is_banned():
             raise CustomOperationError("Operation not allowed: banned account(s).")
 
         # Ensure the transfer amount is a number.
@@ -368,7 +374,7 @@ class BankAccount:
             formatted_limit = "$N/A"
 
         # Determine if the account is banned.
-        banned_status = "Yes" if self.isbanned() else "No"
+        banned_status = "Yes" if self.is_banned() else "No"
 
         # Start building the summary string with basic account info.
         summary = (
@@ -379,7 +385,7 @@ class BankAccount:
         )
 
         # If the account is banned, append the ban reason to the summary.
-        if self.isbanned():
+        if self.is_banned():
             summary += f" | Ban Reason: {self.ban_reason}"
 
         # Return the complete summary string.
