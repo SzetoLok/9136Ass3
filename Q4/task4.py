@@ -317,10 +317,10 @@ class BankAccount:
         previous_target_balance = target_account.balance
 
         # Subtract the transfer amount from the sender's balance.
-        self.balance -= amount
+        self.withdraw(amount)
 
         # Add the transfer amount to the recipient's balance.
-        target_account.balance += amount
+        target_account.deposit(amount)
 
         # Assert that the sender's new balance is correct.
         assert self.balance == previous_self_balance - amount, (
