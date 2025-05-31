@@ -1,0 +1,91 @@
+Step 1: Create Base Robot Class
+python
+class BaseRobot:
+    """
+    Base class for all robot forms. Handles common logic for movement, exploration, and journey logging.
+    """
+    FORM_SPEEDS = {}  # Overridden by subclasses
+
+    def __init__(self, map_size, current_location, journey_log, current_day, exploration_boosts):
+        self.map_size = map_size
+        self.current_location = current_location
+        self.journey_log = journey_log
+        self.current_day = current_day
+        self.exploration_boosts = exploration_boosts
+        self.exploration_speeds = self._get_current_speeds()
+
+    def _get_current_speeds(self):
+        return {ftype: self.FORM_SPEEDS[ftype] * self.exploration_boosts[ftype] 
+                for ftype in self.FORM_SPEEDS}
+
+    # Keep all existing methods (move_to, explore_feature, etc.)
+Step 2: Create Subclasses for Each Form
+python
+class Robot(BaseRobot):
+    """Default robot form"""
+    FORM_SPEEDS = {'mountain': 6.0, 'lake': 8.0, 'crater': 10.0}
+
+class Drone(BaseRobot):
+    """Drone form with different exploration speeds"""
+    FORM_SPEEDS = {'mountain': 12.0, 'lake': 6.0, 'crater': 8.0}
+
+class AUV(BaseRobot):
+    """AUV form with different exploration speeds"""
+    FORM_SPEEDS = {'mountain': 2.0, 'lake': 12.0, 'crater': 6.0}
+Step 3: Add Transformation Logic
+python
+class Transformer:
+    """Manages robot transformations while preserving state"""
+    def __init__(self, map_size):
+        self.robot = Robot(
+            map_size=map_size,
+            current_location=Location(0, 0),
+            journey_log=[],
+            current_day=1,
+            exploration_boosts={'mountain': 1.0, 'lake': 1.0, 'crater': 1.0}
+        )
+
+    def transform(self, new_form: str):
+        """Transform into a new form (robot/drone/auv)"""
+        if new_form == "robot":
+            cls = Robot
+        elif new_form == "drone":
+            cls = Drone
+        elif new_form == "auv":
+            cls = AUV
+        else:
+            raise ValueError("Invalid form")
+
+        # Preserve all state during transformation
+        self.robot = cls(
+            map_size=self.robot.map_size,
+            current_location=self.robot.current_location,
+            journey_log=self.robot.journey_log,
+            current_day=self.robot.current_day,
+            exploration_boosts=self.robot.exploration_boosts
+        )
+Step 4: Update Mission Handling in task3.py
+python
+elif user_input.startswith("mission "):
+    features = user_input[len("mission "):].split(",")
+    
+    # Simulate mission for all forms
+    transformer = Transformer(robot.map_size)
+    best_form = "robot"
+    best_days = float('inf')
+    
+    # Test all forms in preference order
+    for form in ["robot", "drone", "auv"]:
+        transformer.transform(form)
+        days = transformer.robot.simulate_mission(features)
+        if days < best_days:
+            best_days = days
+            best_form = form
+    
+    # Apply best form and execute mission
+    transformer.transform(best_form)
+    transformer.robot.execute_mission(features)
+    robot = transformer.robot  # Update main robot instance
+    
+    # Revert to default form after mission
+    transformer.transform("robot")

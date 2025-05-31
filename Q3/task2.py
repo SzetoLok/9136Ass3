@@ -183,8 +183,37 @@ def main() -> None:
             column_index = int(column_string)
             target_location = Location(row_index, column_index)
 
-            # Move the robot
-            robot.move_to(target_location)
+            # Move the robot and get the path and days needed
+            path, days = robot.move_to(target_location)
+
+            # If already at the target location
+            if path is None:
+                print("same location")
+
+            else:
+                # Build the move string step by step
+                move_string = ""
+
+                for index, location in enumerate(path):
+
+                    if index == 0:
+
+                        # Add the first location without an arrow
+                        move_string += str(location)
+
+                    else:
+
+                        # Add subsequent locations with arrows
+                        move_string += " -> " + str(location)
+
+                # Print the move summary
+                print(f"move from {path[0]} to {path[-1]}")
+
+                # Log the movement in the robot's journey log
+                robot.log_action(robot.current_day, robot.current_day + days - 1, f"move {move_string}")
+
+                # Update the current day
+                robot.current_day += days
 
         # If user wants Robbie to explore the current location
         elif user_input == "explore":
@@ -195,8 +224,22 @@ def main() -> None:
             # Get the feature at the current location
             feature = geological_feature_location_dictionary.get(current)
 
-            # Explore the feature
-            robot.explore_feature(feature)
+            # Explore the feature and get the days needed
+            days = robot.explore_feature(feature)
+
+            # If there is nothing to explore
+            if days == 0:
+                print("nothing to explore")
+
+            # If there is a feature to explore    
+            else:
+                print(f"explore {feature.feature_type} {feature.name}")
+
+                # Log the exploration in the robot's journey log
+                robot.log_action(robot.current_day, robot.current_day + days - 1, f"explore {feature.feature_type} {feature.name}")
+                
+                # Update the current day
+                robot.current_day += days
 
         # If user wants to display the journey log
         elif user_input == "display journey":
