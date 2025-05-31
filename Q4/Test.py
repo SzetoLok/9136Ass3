@@ -44,12 +44,14 @@ class Dog:
 # print(dog1.dogs_created)
 # Dog.create_dog()
 # print(Dog.dogs_created)
-a = set()
-a.add(1)
-print(a)
-a.clear()
-a.add(2)
-# a.remove(1)
-print(a)
-print(f"Deposit balance update failed: expected {a}, "
-    f"got {a} (previous balance: {a}, deposit amount: {a})")
+# a = set()
+# a.add(1)
+# print(a)
+# a.clear()
+# a.add(2)
+# # a.remove(1)
+# print(a)
+# print(f"Deposit balance update failed: expected {a}, "
+#     f"got {a} (previous balance: {a}, deposit amount: {a})")
+
+print(-(-10//5))
