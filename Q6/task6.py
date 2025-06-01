@@ -1,103 +1,15 @@
+"""
+Provides functions for parsing chess PGN files and performing statistical analysis
+on chess games, including win/loss statistics by opening, ELO difference, and move
+sequences. Uses pandas for efficient data handling and supports flexible queries
+on chess datasets for research and reporting.
+
+Author : Szeto Lok
+"""
+
 import re
 import pandas as pd
-
 import re
-from itertools import groupby
-from typing import List, Dict
-
-# def read_pgn(file_name: str) -> list[dict]:
-#     """
-#     Reads a PGN file and returns a list of game dictionaries.
-#     Uses itertools.groupby to separate games by blank lines.
-#     """
-#     required_tags = ['event', 'white', 'black', 'result', 'whiteelo', 'blackelo', 'opening']
-#     games = []
-    
-#     # with open(file_name, 'r', encoding='utf-8') as f:
-#     #     # Group lines into game blocks separated by blank lines
-#     #     grouped = groupby(f, key=lambda line: line.strip() == '')
-        
-#     #     for is_blank, group in grouped:
-#     #         if not is_blank:
-#     with open(file_name, 'r', encoding='utf-8') as f:
-#             file_content = f.read()
-
-#     # Split the file into blocks, each representing a game
-#     game_blocks = [block.strip() for block in file_content.split('\n\n') if block.strip()]
-
-#     games = []
-#     for game_block in game_blocks:
-#         lines = game_block.split('\n')
-#         # game_lines = [line.strip() for line in group]
-#         game_dict = parse_game(lines, required_tags)
-#         games.append(game_dict)
-    
-#     return games
-
-# def parse_game(lines: List[str], required_tags: List[str]) -> Dict:
-#     """Parses a single game's lines into a dictionary."""
-#     tags = parse_tags(lines)
-#     moves_str = extract_moves(lines)
-#     return build_game_dict(tags, moves_str, required_tags)
-
-# def parse_tags(lines: List[str]) -> Dict:
-#     """Extracts tags from game lines."""
-#     tags = {}
-#     for line in lines:
-#         if not line.startswith('['):
-#             break
-#         match = re.match(r'\[(\w+)\s+"(.*)"\]', line)
-#         if match:
-#             tag, value = match.groups()
-#             tags[tag.lower()] = value
-#     return tags
-
-# def extract_moves(lines: List[str]) -> str:
-#     """Extracts and concatenates move lines."""
-#     moves = []
-#     in_moves = False
-    
-#     for line in lines:
-#         if not line.startswith('['):
-#             in_moves = True
-#         if in_moves:
-#             moves.append(line)
-    
-#     return ' '.join(moves).strip()
-
-# def build_game_dict(tags: Dict, moves_str: str, required_tags: List[str]) -> Dict:
-#     """Builds the final game dictionary with moves."""
-#     game_dict = {tag: tags.get(tag, '?') for tag in required_tags}
-    
-#     # Initialize all move fields to '-'
-#     for i in range(1, 21):
-#         game_dict[f'w{i}'] = '-'
-#         game_dict[f'b{i}'] = '-'
-    
-#     # Process move tokens
-#     move_tokens = re.sub(r'\s*(1-0|0-1|1/2-1/2)\s*$', '', moves_str).split()
-#     current_round = 1
-#     token_idx = 0
-    
-#     while token_idx < len(move_tokens) and current_round <= 20:
-#         if re.match(r'^\d+\.$', move_tokens[token_idx]):
-#             token_idx += 1  # Skip move number
-            
-#             # White's move
-#             if token_idx < len(move_tokens) and not re.match(r'^\d+\.', move_tokens[token_idx]):
-#                 game_dict[f'w{current_round}'] = move_tokens[token_idx]
-#                 token_idx += 1
-                
-#             # Black's move
-#             if token_idx < len(move_tokens) and not re.match(r'^\d+\.', move_tokens[token_idx]):
-#                 game_dict[f'b{current_round}'] = move_tokens[token_idx]
-#                 token_idx += 1
-                
-#             current_round += 1
-#         else:
-#             token_idx += 1
-    
-#     return game_dict
 
 
 def read_pgn(file_name: str) -> list[dict]:
@@ -109,100 +21,140 @@ def read_pgn(file_name: str) -> list[dict]:
         file_name (str): Path to the PGN file.
 
     Returns:
-        List[Dict]: List of game dictionaries with keys as specified in part1.txt.
+        list[dict]: List of game dictionaries with keys as specified in part1.txt.
     """
-    games = []  # List to store all parsed games
 
-    # Tags we care about (output keys are lower case)
+    games = []  # This will hold all parsed games as dictionaries.
+
+    # These are the tags (metadata) we want to extract from each game.
     required_tags = ['event', 'white', 'black', 'result', 'whiteelo', 'blackelo', 'opening']
 
-    # Read all lines from the file
+    # Open the PGN file for reading.
     with open(file_name, 'r', encoding='utf-8') as file:
+        # Read all lines from the file into a list.
         lines = file.readlines()
 
+    # Initialize a pointer to track which line we're on.
     current_line_index = 0
+
+    # Store the total number of lines for easy bounds checking.
     total_lines = len(lines)
 
+    # Loop through the file until we've processed all lines.
     while current_line_index < total_lines:
-        # Skip any leading blank lines before a game
+
+        # Skip any blank lines before the start of a game.
         while current_line_index < total_lines and lines[current_line_index].strip() == '':
             current_line_index += 1
 
-        # If we reach the end of the file, break out of the loop
+        # If we've reached the end of the file, stop processing.
         if current_line_index >= total_lines:
             break
 
         # --- Parse the tag section for this game ---
-        tags = {}  # Dictionary to hold the tags for this game
+
+        # This will store the tags for the current game.
+        tags = {}  
+
+        # Loop through lines that start with '[' (these are tag lines).
         while current_line_index < total_lines and lines[current_line_index].startswith('['):
             line = lines[current_line_index].strip()
-            # Match lines like [TagName "Value"]
+
+            # Try to match the line to the pattern [TagName "Value"]
             match = re.match(r'\[([a-zA-Z]+)\s+"(.*)"\]', line)
 
             if match:
-                tag, value = match.groups()
-                tags[tag.lower()] = value  # Store tag in lower case
-            current_line_index += 1
 
-        # Skip blank line(s) between tags and moves
+                # Extract the tag and its value.
+                tag, value = match.groups() 
+                
+                # Store the tag in lowercase for consistency.
+                tags[tag.lower()] = value    
+
+            # Move to the next line.
+            current_line_index += 1  
+
+        # Skip any blank lines between the tags and the moves.
         while current_line_index < total_lines and lines[current_line_index].strip() == '':
             current_line_index += 1
 
         # --- Parse the moves section for this game ---
-        moves_str = ''
 
-        # Concatenate all lines containing moves until next tag or blank line
+        # This will accumulate all the moves for the current game.
+        moves_str = ''  
+
+        # Keep reading lines until we hit a new tag section or a blank line.
         while current_line_index < total_lines and not lines[current_line_index].startswith('[') and lines[current_line_index].strip() != '':
+            
+            # Add this line's moves to our moves string, separated by a space.
             moves_str += ' ' + lines[current_line_index].strip()
             current_line_index += 1
+
+        # Remove any leading/trailing whitespace from the moves string.
         moves_str = moves_str.strip()
 
-        # Remove the result from the end of the move string if present
+        # Remove the game result (like "1-0", "0-1", "1/2-1/2") from the end if present.
         moves_str = re.sub(r'\s*(1-0|0-1|1/2-1/2)\s*$', '', moves_str)
 
-        # Split the moves string into tokens (move numbers and move notation)
+        # Split the moves string into individual tokens (numbers and moves).
         move_tokens = moves_str.split()
 
         # --- Prepare the output dictionary for this game ---
-        game_dict = {}
 
-        # Add all required tags, add '?' if player's rating is missing
+        # This will store all info for this game.
+        game_dict = {}  
+
+        # Add all required tags to the game dictionary.
+        # If a tag is missing, use '?' as a placeholder.
         for tag in required_tags:
             game_dict[tag] = tags.get(tag, '?')
 
-        # Initialize all w1-b20 keys to '-'
+        # Initialize all move slots for 20 rounds (w1, b1, ..., w20, b20) to '-'
         for round_number in range(1, 21):
             game_dict[f'w{round_number}'] = '-'
             game_dict[f'b{round_number}'] = '-'
 
         # --- Extract moves into w1, b1, ..., w20, b20 ---
-        current_round = 1  # Round number (1-based)
-        move_token_index = 0  # Index in move_tokens list
-        
+
+        # This keeps track of which round we're on (1-based).
+        current_round = 1  
+
+        # This keeps track of our position in move_tokens.
+        move_token_index = 0 
+
+        # Process up to 20 rounds of moves (white and black).
         while move_token_index < len(move_tokens) and current_round <= 20:
-            # Each round starts with a number and a period, e.g., "1."
+
+            # Look for a move number token (like "1.")
             if re.match(r'^\d+\.$', move_tokens[move_token_index]):
-                move_token_index += 1
-                
-                # Assign white's move if available and valid
+
+                # Skip the move number token.
+                move_token_index += 1 
+
+                # If the next token is a move (not another number), assign to white.
                 if move_token_index < len(move_tokens) and not re.match(r'^\d+\.$', move_tokens[move_token_index]):
                     game_dict[f'w{current_round}'] = move_tokens[move_token_index]
                     move_token_index += 1
-                
-                # Assign black's move if available and valid
+
+                # If the next token is a move (not another number), assign to black.
                 if move_token_index < len(move_tokens) and not re.match(r'^\d+\.$', move_tokens[move_token_index]):
                     game_dict[f'b{current_round}'] = move_tokens[move_token_index]
                     move_token_index += 1
-                
+
+                # Move to the next round.
                 current_round += 1
+
             else:
-                # If the token is not a move number, skip it (defensive)
+
+                # If the token is not a move number, skip it (defensive programming).
                 move_token_index += 1
 
-        # Add the parsed game dictionary to the list of games
+        # Add the fully parsed game dictionary to the list of games.
         games.append(game_dict)
 
+    # Once all games are processed, return the list of game dictionaries.
     return games
+
 
 # Part 2
 def win_loss_by_opening(games: list[dict]) -> dict:

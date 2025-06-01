@@ -1,3 +1,12 @@
+"""
+Implements recursive chess analysis tools, including counting the number of legal
+move sequences from any position and searching for the most successful opening
+sequences in a PGN dataset. Integrates with binh_chess.py for move generation and
+supports advanced, data-driven chess research.
+
+Author : Szeto Lok
+"""
+
 from binh_chess import *
 import pandas as pd
 import re
@@ -12,99 +21,138 @@ def read_pgn(file_name: str) -> list[dict]:
         file_name (str): Path to the PGN file.
 
     Returns:
-        List[Dict]: List of game dictionaries with keys as specified in part1.txt.
+        list[dict]: List of game dictionaries with keys as specified in part1.txt.
     """
-    games = []  # List to store all parsed games
 
-    # Tags we care about (output keys are lower case)
+    games = []  # This will hold all parsed games as dictionaries.
+
+    # These are the tags (metadata) we want to extract from each game.
     required_tags = ['event', 'white', 'black', 'result', 'whiteelo', 'blackelo', 'opening']
 
-    # Read all lines from the file
+    # Open the PGN file for reading.
     with open(file_name, 'r', encoding='utf-8') as file:
+        # Read all lines from the file into a list.
         lines = file.readlines()
 
+    # Initialize a pointer to track which line we're on.
     current_line_index = 0
+
+    # Store the total number of lines for easy bounds checking.
     total_lines = len(lines)
 
+    # Loop through the file until we've processed all lines.
     while current_line_index < total_lines:
-        # Skip any leading blank lines before a game
+
+        # Skip any blank lines before the start of a game.
         while current_line_index < total_lines and lines[current_line_index].strip() == '':
             current_line_index += 1
 
-        # If we reach the end of the file, break out of the loop
+        # If we've reached the end of the file, stop processing.
         if current_line_index >= total_lines:
             break
 
         # --- Parse the tag section for this game ---
-        tags = {}  # Dictionary to hold the tags for this game
+
+        # This will store the tags for the current game.
+        tags = {}  
+
+        # Loop through lines that start with '[' (these are tag lines).
         while current_line_index < total_lines and lines[current_line_index].startswith('['):
             line = lines[current_line_index].strip()
-            # Match lines like [TagName "Value"]
+
+            # Try to match the line to the pattern [TagName "Value"]
             match = re.match(r'\[([a-zA-Z]+)\s+"(.*)"\]', line)
 
             if match:
-                tag, value = match.groups()
-                tags[tag.lower()] = value  # Store tag in lower case
-            current_line_index += 1
 
-        # Skip blank line(s) between tags and moves
+                # Extract the tag and its value.
+                tag, value = match.groups() 
+                
+                # Store the tag in lowercase for consistency.
+                tags[tag.lower()] = value    
+
+            # Move to the next line.
+            current_line_index += 1  
+
+        # Skip any blank lines between the tags and the moves.
         while current_line_index < total_lines and lines[current_line_index].strip() == '':
             current_line_index += 1
 
         # --- Parse the moves section for this game ---
-        moves_str = ''
 
-        # Concatenate all lines containing moves until next tag or blank line
+        # This will accumulate all the moves for the current game.
+        moves_str = ''  
+
+        # Keep reading lines until we hit a new tag section or a blank line.
         while current_line_index < total_lines and not lines[current_line_index].startswith('[') and lines[current_line_index].strip() != '':
+            
+            # Add this line's moves to our moves string, separated by a space.
             moves_str += ' ' + lines[current_line_index].strip()
             current_line_index += 1
+
+        # Remove any leading/trailing whitespace from the moves string.
         moves_str = moves_str.strip()
 
-        # Remove the result from the end of the move string if present
+        # Remove the game result (like "1-0", "0-1", "1/2-1/2") from the end if present.
         moves_str = re.sub(r'\s*(1-0|0-1|1/2-1/2)\s*$', '', moves_str)
 
-        # Split the moves string into tokens (move numbers and move notation)
+        # Split the moves string into individual tokens (numbers and moves).
         move_tokens = moves_str.split()
 
         # --- Prepare the output dictionary for this game ---
-        game_dict = {}
 
-        # Add all required tags, add '?' if player's rating is missing
+        # This will store all info for this game.
+        game_dict = {}  
+
+        # Add all required tags to the game dictionary.
+        # If a tag is missing, use '?' as a placeholder.
         for tag in required_tags:
             game_dict[tag] = tags.get(tag, '?')
 
-        # Initialize all w1-b20 keys to '-'
+        # Initialize all move slots for 20 rounds (w1, b1, ..., w20, b20) to '-'
         for round_number in range(1, 21):
             game_dict[f'w{round_number}'] = '-'
             game_dict[f'b{round_number}'] = '-'
 
         # --- Extract moves into w1, b1, ..., w20, b20 ---
-        current_round = 1  # Round number (1-based)
-        move_token_index = 0  # Index in move_tokens list
-        
+
+        # This keeps track of which round we're on (1-based).
+        current_round = 1  
+
+        # This keeps track of our position in move_tokens.
+        move_token_index = 0 
+
+        # Process up to 20 rounds of moves (white and black).
         while move_token_index < len(move_tokens) and current_round <= 20:
-            # Each round starts with a number and a period, e.g., "1."
+
+            # Look for a move number token (like "1.")
             if re.match(r'^\d+\.$', move_tokens[move_token_index]):
-                move_token_index += 1
-                
-                # Assign white's move if available and valid
+
+                # Skip the move number token.
+                move_token_index += 1 
+
+                # If the next token is a move (not another number), assign to white.
                 if move_token_index < len(move_tokens) and not re.match(r'^\d+\.$', move_tokens[move_token_index]):
                     game_dict[f'w{current_round}'] = move_tokens[move_token_index]
                     move_token_index += 1
-                
-                # Assign black's move if available and valid
+
+                # If the next token is a move (not another number), assign to black.
                 if move_token_index < len(move_tokens) and not re.match(r'^\d+\.$', move_tokens[move_token_index]):
                     game_dict[f'b{current_round}'] = move_tokens[move_token_index]
                     move_token_index += 1
-                
+
+                # Move to the next round.
                 current_round += 1
+
             else:
-                # If the token is not a move number, skip it (defensive)
+
+                # If the token is not a move number, skip it (defensive programming).
                 move_token_index += 1
 
-        # Add the parsed game dictionary to the list of games
+        # Add the fully parsed game dictionary to the list of games.
         games.append(game_dict)
 
+    # Once all games are processed, return the list of game dictionaries.
     return games
 
 #Part 1
@@ -183,27 +231,6 @@ def winning_statistics(file_name: str, depth: int, tolerance: int) -> tuple[floa
             tuple[float, list[str], int]: The best probability, the sequence, and the number of games.
         """
 
-        # Build the list of column names corresponding to the moves in current_moves.
-        # move_columns = []
-
-        # for i in range(len(current_moves)):
-
-        #     # If i is even, it's white's move in round (i//2)+1
-        #     if i % 2 == 0:
-        #         round_num = (i // 2) + 1
-        #         move_columns.append(f'w{round_num}')
-
-        #     # If i is odd, it's black's move in round (i//2)+1
-        #     else:
-        #         round_num = (i // 2) + 1
-        #         move_columns.append(f'b{round_num}')
-
-        # # Create a boolean mask to filter DataFrame rows matching the current move sequence
-        # mask = pd.Series([True] * len(df))
-        # for col, move in zip(move_columns, current_moves):
-        #     mask &= (df[col] == move)
-        # filtered_df = df[mask]
-
         # Determine how many moves we need to check in the sequence
         number_of_moves_to_check = len(current_moves)
 
@@ -266,6 +293,7 @@ def winning_statistics(file_name: str, depth: int, tolerance: int) -> tuple[floa
                 # If not enough games, return zero probability and an empty sequence
                 return (0.0, [], 0)
 
+
         # =========================
         # RECURSION CASE: Explore next moves
         # =========================
@@ -273,31 +301,28 @@ def winning_statistics(file_name: str, depth: int, tolerance: int) -> tuple[floa
         # Determine the next move index (how many moves have been played so far)
         next_move_index = len(current_moves)
 
-        # Decide which column to use for the next move:
-        # If the number of moves so far is even, it's white's turn
-        # if next_move_index % 2 == 0:
-        #     round_num = (next_move_index // 2) + 1
-        #     next_col = f'w{round_num}'
-        # # Otherwise, it's black's turn
-        # else:
-        #     round_num = (next_move_index // 2) + 1
-        #     next_col = f'b{round_num}'
-
         # Calculate which round (1-based) next move belongs to
         round_number = (next_move_index // 2) + 1
         
         # Even indices (0, 2, 4...) are white moves (w1, w2, w3...)
-        if move_index % 2 == 0:
+        if next_move_index % 2 == 0:
             next_column = (f'w{round_number}')
 
         # Odd indices (1, 3, 5...) are black moves (b1, b2, b3...)
         else:
             next_column = (f'b{round_number}')
 
-        # Get all unique possible next moves from the filtered games (excluding '-')
+        # Initialize an empty list to store the valid possible next moves
         possible_moves = []
+
+        # Iterate over all unique moves found in the next move column of the filtered DataFrame
         for move in filtered_games[next_column].unique():
+
+            # Check if the move is not a placeholder '-'
+            # The '-' value indicates that there is no move in this position for some games
             if move != '-':
+
+                # If the move is valid (not '-'), add it to the list of possible moves
                 possible_moves.append(move)
 
         # Initialize variables to keep track of the best result found so far
@@ -316,8 +341,10 @@ def winning_statistics(file_name: str, depth: int, tolerance: int) -> tuple[floa
             # Remove the move after recursion to backtrack
             current_moves.pop()
 
-            # Update the best result if this sequence is better
+            # Check if the total occurrence reach the tolerance number
             if total >= tolerance:
+
+                # Update the best result if this sequence is better
                 if probability > best_probability:
                     best_probability, best_sequence, best_total = probability, sequence, total
 
@@ -347,8 +374,8 @@ if __name__ == "__main__":
     # print(count_positions([], 4))
     # print(count_positions(['e4', 'e6', 'Nf3', 'd5', 'exd5', 'Qxd5', 'd4', 'Nc6', 'Nc3', 'Qd7', 'Be3', 'Nf6'], 3) == 55707)
 
+
     print(winning_statistics('lichess_small.pgn', 3, 5 ) == (1.0, ['d4', 'd6', 'c4'], 5))
-# winning_statistics('lichess_small.pgn', 3, 6 ) == (0.8571428571428571, ['d4', 'd5', 'c4'], 21)
-# winning_statistics('lichess_small.pgn', 3, 22) == (0.6585365853658537, ['e4', 'e5', 'Nf3'], 41)
-# winning_statistics('lichess_small.pgn', 3, 42) == (0, [], 0)
+    print(winning_statistics('lichess_small.pgn', 3, 6 ) == (0.8571, ['d4', 'd5', 'c4'], 21))
+    print(winning_statistics('lichess_small.pgn', 3, 22) == (0.6585, ['e4', 'e5', 'Nf3'], 41))
     
