@@ -1,0 +1,16 @@
+Part 2
+Binh would like your help one last time. He would like to analyse the best opening moves, using the lichess.org database. Specifically, for the starting board position, and an integer depthBinh would like to determine the sequence of moves, with the highest winning probability for white, such that at least tolerance games appear in the dataset.
+
+Your task is to implement this function def winning_statistics(file_name: str, depth: int, tolerance: int) -> tuple[float, list[str], int] using a recursive approach. The function should take the file_name of a PGN file, a depth and the minimum number of games that appear in the dataset for the possible positions. The function should return the highest probability that white can win, given the dataset, followed by the set of moves that achieve that probability, followed by the number of total games. The probability that white can win is defined as 
+white_wins / total_games
+​
+ . As an example, the following statements will evaluate to true (Due to the limitations of tests in ED, only lines 2 and 3 of the example will be autotested):
+
+winning_statistics('lichess_small.pgn', 3, 5 ) == (1.0, ['d4', 'd6', 'c4'], 5)
+winning_statistics('lichess_small.pgn', 3, 6 ) == (0.8571428571428571, ['d4', 'd5', 'c4'], 21)
+winning_statistics('lichess_small.pgn', 3, 22) == (0.6585365853658537, ['e4', 'e5', 'Nf3'], 41)
+winning_statistics('lichess_small.pgn', 3, 42) == (0, [], 0)
+
+The function takes a file_name as input, however, you do not want to deal with the file constantly. We recommend reading the file immediately and then creating an auxiliary function that performs the actual computation given the contents of the file.
+
+When evaluating the probability of a win for white, we will consider the first 4 digits after the decimal point.

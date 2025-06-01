@@ -412,7 +412,7 @@ if __name__ == '__main__':
     alice.ban_account("fraud")
     bob.ban_account("murder")
     print(f'Alice: {alice}\nBob: {bob}\n')
-    BankAccount.unban_all()
+    BankAccount.set_next_account_number(1)
     # Uncomment the following lines to test deposit, withdrawal, and transfer functionality.
 
     # alice.deposit(50)

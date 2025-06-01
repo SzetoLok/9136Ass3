@@ -1,0 +1,110 @@
+Part 1
+def read_pgn(file_name: str) -> list[dict]: - This function is given a file name and reads the games contained, returning a list of dictionaries containing games. The dictionaries should have the following keys:
+
+'event'
+'white'
+'black'
+'result'
+'whiteelo'
+'blackelo'
+'opening'
+'w1'
+'b1'
+'w2'
+'b2'
+'w3'
+'b3'
+'w4'
+'b4'
+'w5'
+'b5'
+'w6'
+'b6'
+'w7'
+'b7'
+'w8'
+'b8'
+'w9'
+'b9'
+'w10'
+'b10'
+'w11'
+'b11'
+'w12'
+'b12'
+'w13'
+'b13'
+'w14'
+'b14'
+'w15'
+'b15'
+'w16'
+'b16'
+'w17'
+'b17'
+'w18'
+'b18'
+'w19'
+'b19'
+'w20'
+'b20'
+
+The first 7 keys represent the 7 tags that we will require from our games. For each 
+1
+⩽
+i
+⩽
+20
+1⩽i⩽20, w{i}, b{i} are the moves made by white and black in round i, respectively. If white and/or black make no moves in round i or the move string is invalid, then the key should have a value of '-'. All 20 keys for white and all 20 keys for black are required.
+
+An example of such a dictionary for the earlier game is:
+
+{
+'event': 'Rated Blitz game',
+'white': 'german11',
+'black': 'ralphhh',
+'result': '0-1',
+'whiteelo': '1556',
+'blackelo': '1457',
+'opening': 'French Defense: Knight Variation',
+'w1': 'e4',
+'b1': 'e6',
+'w2': 'Nf3',
+'b2': 'd5',
+'w3': 'exd5',
+'b3': 'Qxd5',
+'w4': 'd4',
+'b4': 'Nc6',
+'w5': 'Nc3',
+'b5': 'Qd7',
+'w6': 'Be3',
+'b6': 'Nf6',
+'w7': 'Bb5',
+'b7': 'a6',
+'w8': 'Ba4',
+'b8': 'b5',
+'w9': 'Bb3',
+'b9': 'Bd6',
+'w10': 'O-O',
+'b10': 'O-O',
+'w11': 'Bg5',
+'b11': 'Qe7',
+'w12': 'a3',
+'b12': 'h6',
+'w13': 'Bh4',
+'b13': 'g5',
+'w14': 'Bg3',
+'b14': 'Bxg3',
+'w15'" 'fxg3',
+'b15': 'Bb7',
+'w16': 'Re1',
+'b16': 'Rad8',
+'w17': 'd5',
+'b17': 'Nxd5',
+'w18': 'Qe2',
+'b18': 'Nxc3',
+'w19': 'bxc3',
+'b19': 'Qf6',
+'w20': 'Rad1',
+'b20': 'Rxd1' 
+}

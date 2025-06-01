@@ -1,0 +1,12 @@
+Lastly, Binh is interested in a program that would allow him to enter a list of moves and 
+find out if the position is better for white or black. 
+The function def win_loss_by_moves(games: list[dict], moves: list[str]) -> tuple[int, int]: should take the list of games in dictionary form
+ and a list of moves. The list of moves will contain the white and black moves from the beginning of the game, in an alternating fashion, and
+  will return a tuple of the number of games won by white, followed by the number of games won by black. For example,  example.pgn and
+   the following list of moves ['e4', 'e5', 'Nf3'] should return (3, 2), whereas the list ['e4', 'e5', 'Nf3', 'Nc6'] should return (2, 2)
+
+How the moves are represented: 
+These three moves can be represented as d4, the move that takes the white pawn to the cell d4 (The movement of the pawn is predictable 
+enough that we do not attach the abbreviation to the front), Nc6, the move of the black knight to c6, and lastly Bf4,
+ the move that takes the white bishop to f4. This means that from the starting board, 
+ this new board state can be represented by the list of moves, notably ["d4", "Nc6", "Bf4"].

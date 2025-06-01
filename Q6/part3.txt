@@ -1,0 +1,12 @@
+Part 3
+Binh is also interested in the relative strength of players. The function def win_loss_by_elo(games: list[dict], lower: int, upper: int) -> tuple[int, int]: should take a list of games in dictionary format 
+as input. We also take as input two non-negative numbers that represent the absolute bounds on the difference of the player's ELOs. Let variables 'we' and 'be'
+be represent the white players' elo score and black players' elo score, respectively. For games in which the difference in player strength falls within the range 
+lower<∣we−be∣<upper, this function returns a tuple containing the number of games that were won by the player with the lower ELO in the first position, 
+and the number of games that were won by the player with the higher ELO in the second position. For example, the following statements should evaluate to true when run on the file lichess_small.pgn:
+
+win_loss_by_elo(data, 0, 600) == (99, 218)
+win_loss_by_elo(data, 0, 400) == (98, 197)
+win_loss_by_elo(data, 0, 200) == (85, 133)
+win_loss_by_elo(data, 0, 100) == (53, 72)
+win_loss_by_elo(data, 400, 600) == (1, 21)
