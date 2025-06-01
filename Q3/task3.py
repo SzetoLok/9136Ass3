@@ -7,7 +7,7 @@ command-line interface for map exploration.
 Author : Szeto Lok
 """
 
-from geo_features import Location, Size, Mountain, Lake, Crater
+from geo_features import *
 from robot import *
 
 def load_geological_features(file_name: str) -> tuple:
@@ -135,8 +135,8 @@ def main() -> None:
     # Load map size and features from file
     map_size, geological_feature_location_dictionary = load_geological_features("Q2/geo_features.txt")
 
-    # Create the robot instance
-    robot = Robot(map_size)
+    # Create the transformer, which manages robot transformations and state
+    transformer = Transformer(map_size)
 
     # Flag to control loop exit
     exit_is_found = False
@@ -183,67 +183,28 @@ def main() -> None:
             column_index = int(column_string)
             target_location = Location(row_index, column_index)
 
-            # Move the robot and get the path and days needed
-            path, days = robot.move_to(target_location)
-
-            # If already at the target location
-            if path is None:
-                print("same location")
-
-            else:
-                # Build the move string step by step
-                move_string = ""
-
-                for index, location in enumerate(path):
-
-                    if index == 0:
-
-                        # Add the first location without an arrow
-                        move_string += str(location)
-
-                    else:
-
-                        # Add subsequent locations with arrows
-                        move_string += " -> " + str(location)
-
-                # Print the move summary
-                print(f"move from {path[0]} to {path[-1]}")
-
-                # Log the movement in the robot's journey log
-                robot.log_action(robot.current_day, robot.current_day + days - 1, f"move {move_string}")
-
-                # Update the current day
-                robot.current_day += days
+            # Move the robot
+            transformer.robot.move_to(target_location)
 
         # If user wants Robbie to explore the current location
         elif user_input == "explore":
 
             # Get the current location as a tuple
-            current = (robot.current_location.Y, robot.current_location.X)
+            current = (transformer.robot.current_location.Y, transformer.robot.current_location.X)
 
             # Get the feature at the current location
             feature = geological_feature_location_dictionary.get(current)
 
-            # Explore the feature and get the days needed
-            days = robot.explore_feature(feature)
-
-            # If there is nothing to explore
-            if days == 0:
-                print("nothing to explore")
-
-            # If there is a feature to explore    
-            else:
-                print(f"explore {feature.feature_type} {feature.name}")
-
-                # Log the exploration in the robot's journey log
-                robot.log_action(robot.current_day, robot.current_day + days - 1, f"explore {feature.feature_type} {feature.name}")
-                
-                # Update the current day
-                robot.current_day += days
+            # Explore the feature
+            transformer.robot.explore_feature(feature)
+        
+        elif user_input.startswith("mission "):
+            feature_names = [name.strip() for name in user_input[len("mission "):].split(",")]
+            transformer.run_mission(feature_names, geological_feature_location_dictionary)
 
         # If user wants to display the journey log
         elif user_input == "display journey":
-            robot.display_journey()
+            transformer.robot.display_journey()
 
         # If the command is not recognized
         else:

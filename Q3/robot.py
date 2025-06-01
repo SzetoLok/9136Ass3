@@ -1,35 +1,107 @@
 from geo_features import *
 
-class Robot:
+class BaseRobot:
     """
-    Represents Robbie the Explorer on a toroidal Mars map.
-    Handles movement, exploration, and journey logging.
-
-    Instance Variables:
-        current_location (Location): Robbie's current position on the map.
-        map_size (Size): The dimensions of the map.
-        journey_log (list): List of tuples (start_day, end_day, action_str) recording Robbie's actions.
-        current_day (int): The current day in Robbie's journey.
-        exploration_speeds (dict): Exploration speed for each feature type.
+    Base class for all robot forms. Handles common logic for movement, exploration, and journey logging.
     """
+    FORM_SPEEDS = {}  # Overridden by subclasses
 
-    def __init__(self, map_size) -> None:
+    def __init__(self, map_size, current_location, journey_log, current_day, exploration_boosts):
+        self.map_size = map_size
+        self.current_location = current_location
+        self.journey_log = journey_log
+        self.current_day = current_day
+        self.exploration_boosts = exploration_boosts
+        self.exploration_speeds = self._get_current_speeds()
+
+    def _get_current_speeds(self):
+        return {feature_type: self.FORM_SPEEDS[feature_type] * self.exploration_boosts[feature_type] 
+                for feature_type in self.FORM_SPEEDS}
+
+    def move_to(self, target_location: Location, suppress_output: bool = False) -> None:
         """
-        Initialize the robot at (0, 0) with the given map size.
+        Moves Robbie to the specified target location on the map, always prioritizing horizontal movement first
+        (with wrap-around if optimal), then vertical movement. The function returns the path Robbie takes and
+        the number of days required for the move. If Robbie is already at the target location, no movement is performed.
 
         Arguments:
-            map_size (Size): The dimensions of the Mars map.
+            target_location (Location): The destination location Robbie should move to.
+
+        Returns:
+            None
         """
 
-        self.current_location = Location(0, 0)  # Start at the top-left corner
-        self.map_size = map_size                # Store the map size
-        self.journey_log = []                   # Initialize the journey log
-        self.current_day = 1                    # Start at day 1
-        self.exploration_speeds = {             # Initial exploration speeds
-            'mountain': 6.0,
-            'lake': 8.0,
-            'crater': 10.0
-        }
+        # Calculate the path and days needed to reach the target location
+        path, days = self.calculate_path(target_location)
+
+        # If already at the target location
+        if path is None:
+            print("same location")
+
+        else:
+            # Build the move string step by step
+            move_string = ""
+
+            for index, location in enumerate(path):
+
+                if index == 0:
+
+                    # Add the first location without an arrow
+                    move_string += str(location)
+
+                else:
+
+                    # Add subsequent locations with arrows
+                    move_string += " -> " + str(location)
+
+            # Print the move summary
+            if not suppress_output:
+                print(f"move from {path[0]} to {path[-1]}")
+
+            # Log the movement in the robot's journey log
+            self.log_action(self.current_day, self.current_day + days - 1, f"move {move_string}")
+
+            # Update the current day
+            self.current_day += days
+
+
+    def calculate_path(self, target_location: Location) -> tuple:
+        """
+        Move to the target location, prioritizing horizontal movement and wrapping if optimal.
+
+        Args:
+            target_location (Location): The destination location.
+
+        Returns:
+            tuple: (path (list of Location), days_needed (int))
+                path: List of visited locations (including start and end).
+                days_needed: Number of days required to reach the destination.
+                Returns (None, 0) if already at the target location.
+        """
+
+        # If already at the target, do nothing and return immediately
+        if self.current_location == target_location:
+            return None, 0
+
+        # Start path with current location
+        path = [self.current_location]  
+        current_y = self.current_location.Y
+        current_x = self.current_location.X
+        target_y = target_location.Y
+        target_x = target_location.X
+
+        # Move horizontally first (X axis)
+        x_path, new_x = self._move_along_axis(current_x, target_x, self.map_size.width, 'x', current_y)
+        path.extend(x_path)
+
+        # Move vertically next (Y axis)
+        y_path, new_y = self._move_along_axis(current_y, target_y, self.map_size.height, 'y', new_x)
+        path.extend(y_path)
+
+        # Update current location to new position
+        self.current_location = Location(new_y, new_x)
+
+        return path, len(path) - 1
 
 
     def _move_along_axis(
@@ -119,45 +191,40 @@ class Robot:
         return path, final_coordinate
 
 
-    def move_to(self, target_location: Location) -> tuple:
+    def explore_feature(self, feature: object, suppress_output: bool = False) -> None:
         """
-        Move to the target location, prioritizing horizontal movement and wrapping if optimal.
+        Explores the geological feature at Robbie's current location. The time required depends on
+        Robbie's current exploration speed for the feature type and the feature's size. After each
+        exploration, Robbie's speed for that feature type increases by 20%. If there is no feature
+        at the current location, nothing happens.
 
-        Args:
-            target_location (Location): The destination location.
+        Arguments:
+            feature (object): The geological feature to explore (Mountain, Lake, or Crater).
 
         Returns:
-            tuple: (path (list of Location), days_needed (int))
-                path: List of visited locations (including start and end).
-                days_needed: Number of days required to reach the destination.
-                Returns (None, 0) if already at the target location.
+            None
         """
 
-        # If already at the target, do nothing and return immediately
-        if self.current_location == target_location:
-            return None, 0
+        # Calculate the days required to explore the feature
+        days = self.calculate_days_required(feature)
 
-        # Start path with current location
-        path = [self.current_location]  
-        current_y = self.current_location.Y
-        current_x = self.current_location.X
-        target_y = target_location.Y
-        target_x = target_location.X
+        # If there is nothing to explore
+        if days == 0:
+            print("nothing to explore")
 
-        # Move horizontally first (X axis)
-        x_path, new_x = self._move_along_axis(current_x, target_x, self.map_size.width, 'x', current_y)
-        path.extend(x_path)
+        # If there is a feature to explore    
+        else:
+            if not suppress_output:
+                print(f"explore {feature.feature_type} {feature.name}")
 
-        # Move vertically next (Y axis)
-        y_path, new_y = self._move_along_axis(current_y, target_y, self.map_size.height, 'y', new_x)
-        path.extend(y_path)
-
-        # Update current location to new position
-        self.current_location = Location(new_y, new_x)
-        return path, len(path) - 1
+            # Log the exploration in the robot's journey log
+            self.log_action(self.current_day, self.current_day + days - 1, f"explore {feature.feature_type} {feature.name}")
+            
+            # Update the current day
+            self.current_day += days
 
 
-    def explore_feature(self, feature: object) -> int:
+    def calculate_days_required(self, feature: object) -> int:
         """
         Calculates the number of days required for Robbie to explore the given feature,
         updates the exploration speed for the feature type by increasing it by 20% after each exploration,
@@ -179,7 +246,8 @@ class Robot:
         feature_type = feature.feature_type
         # Get the feature value for exploration (height, depth, or perimeter)
         feature_value = feature.feature_value[1]
-        speed = self.exploration_speeds[feature_type]
+        # speed = self.exploration_speeds[feature_type]
+        speed = self.FORM_SPEEDS[feature_type] * self.exploration_boosts[feature_type]
 
         # If the feature value is not perfectly divisible by speed, use ceiling division
         if feature_value % speed != 0:
@@ -189,8 +257,9 @@ class Robot:
             days_needed = int(feature_value // speed)
 
         # Increase the exploration speed for this feature type by 20%
-        self.exploration_speeds[feature_type] *= 1.2
+        self.exploration_boosts[feature_type] *= 1.2
 
+        # print(f'speed: {speed}, days_needed: {days_needed}')
         # Return the number of days needed to explore the feature
         return days_needed
 
@@ -234,51 +303,28 @@ class Robot:
                 # If the action spanned multiple days
                 print(f"Day {start}-{end}: {action}")
 
+
     def simulate_mission(
-        self,
-        feature_name_list: list[str],
-        geological_feature_location_dictionary: dict,
-        starting_location: Location = None,
-        starting_exploration_boosts: dict = None,
-        form_exploration_speeds: dict = None
-    ) -> tuple[int, list]:
+                        self,
+                        feature_name_list: list,
+                        geological_feature_location_dictionary: dict
+                        ) -> int:
         """
-        Simulate a mission for a given list of feature names and robot form,
-        returning the total days required and the step-by-step plan.
-        Does not alter the real robot's state.
+        Simulate a mission for the current robot form, starting from the robot's current state.
+        Returns the total number of days required to complete all explorations (ignoring travel time).
+        This method does NOT modify the real robot's state.
 
         Arguments:
-            feature_name_list (list[str]): List of feature names (str) to explore, in order.
+            feature_name_list (list): List of feature names (str) to explore, in order.
             geological_feature_location_dictionary (dict): Dictionary mapping (row, col) to feature objects.
-            starting_location (Location, optional): Where to start the mission. If None, uses current_location.
-            starting_exploration_boosts (dict, optional): Speed boost factors for each feature type. If None, uses current boosts.
-            form_exploration_speeds (dict, optional): Base exploration speeds for the chosen form. If None, uses current form's speeds.
 
         Returns:
-            tuple: (total_days (int), plan (list))
-                total_days: Total number of days required to complete the mission.
-                plan: List of tuples, each tuple is
-                    (move_path (list of Location), feature, move_days (int), explore_days (int))
+            int: Total number of days required to complete the mission (exploration only).
         """
-        # Use provided or current state for simulation
-        if starting_location is None:
-            simulation_location = Location(self.current_location.Y, self.current_location.X)
-        else:
-            simulation_location = Location(starting_location.Y, starting_location.X)
 
-        if starting_exploration_boosts is None:
-            simulation_exploration_boosts = self.exploration_boosts.copy() if hasattr(self, 'exploration_boosts') else {'mountain': 1.0, 'lake': 1.0, 'crater': 1.0}
-        else:
-            simulation_exploration_boosts = starting_exploration_boosts.copy()
-
-        if form_exploration_speeds is None:
-            # Use current form's base speeds if not provided
-            simulation_base_speeds = self.exploration_speeds.copy()
-        else:
-            simulation_base_speeds = form_exploration_speeds.copy()
-
-        total_days = 0
-        plan = []
+        # Copy the robot's current exploration boosts for simulation
+        simulated_exploration_boosts = self.exploration_boosts.copy()
+        total_exploration_days = 0
 
         # Build a mapping from feature name to feature object for quick lookup
         feature_name_to_object = {feature.name: feature for feature in geological_feature_location_dictionary.values()}
@@ -286,64 +332,140 @@ class Robot:
         for feature_name in feature_name_list:
             feature = feature_name_to_object[feature_name]
 
-            # Simulate movement to the feature
-            move_path, move_days = self._simulate_move(simulation_location, feature.location)
-
-            # Simulate exploration of the feature
+            # Get the feature type and value
             feature_type = feature.feature_type
             feature_value = feature.feature_value[1]
-            # Calculate current effective speed for this feature type
-            current_speed = simulation_base_speeds[feature_type] * simulation_exploration_boosts[feature_type]
-            # Use ceiling division for days (always round up)
-            explore_days = -(-feature_value // current_speed) if feature_value % current_speed != 0 else feature_value // current_speed
-            explore_days = int(explore_days)
 
-            # Update boosts for next feature
-            simulation_exploration_boosts[feature_type] *= 1.2
+            # Calculate the current effective speed for this feature type
+            current_speed = self.FORM_SPEEDS[feature_type] * simulated_exploration_boosts[feature_type]
 
-            # Update location and total days
-            simulation_location = feature.location
-            total_days += move_days + explore_days
+            # print(f'{type(self)} current_speed: {current_speed} for {feature_type}')
+            # Calculate the number of days needed to explore (always round up)
+            if feature_value % current_speed != 0:
+                explore_days = int(-(-feature_value // current_speed))
+            else:
+                explore_days = int(feature_value // current_speed)
 
-            # Add this step to the plan
-            plan.append((move_path, feature, move_days, explore_days))
 
-        return total_days, plan
+            # Add to the total exploration days
+            total_exploration_days += explore_days
 
-    def _simulate_move(self, start_location: Location, end_location: Location) -> tuple[list, int]:
-        """
-        Simulate movement from start_location to end_location, returning (path, days).
-        Does not alter the robot's state.
+            # Update the boost for this feature type for the next exploration
+            simulated_exploration_boosts[feature_type] *= 1.2
 
-        Arguments:
-            start_location (Location): Starting location.
-            end_location (Location): Ending location.
+        return total_exploration_days
 
-        Returns:
-            tuple: (path (list of Location), days (int))
-        """
-        path = [Location(start_location.Y, start_location.X)]
-        current_row_index, current_column_index = start_location.Y, start_location.X
-        target_row_index, target_column_index = end_location.Y, end_location.X
 
-        # Move horizontally first
-        horizontal_path, new_column_index = self._move_along_axis(
-            current=current_column_index,
-            target=target_column_index,
-            size=self.map_size.width,
-            axis='x',
-            fixed_coord=current_row_index
+
+class Robot(BaseRobot):
+    """Default robot form"""
+    def __init__(self, map_size, current_location, journey_log, current_day, exploration_boosts):
+        super().__init__(map_size, current_location, journey_log, current_day, exploration_boosts)
+        self.FORM_SPEEDS = {'mountain': 6.0, 'lake': 8.0, 'crater': 10.0}
+
+
+class Drone(BaseRobot):
+    """Drone form with different exploration speeds"""
+    def __init__(self, map_size, current_location, journey_log, current_day, exploration_boosts):
+        super().__init__(map_size, current_location, journey_log, current_day, exploration_boosts)
+        self.FORM_SPEEDS = {'mountain': 12.0, 'lake': 6.0, 'crater': 8.0}
+
+
+class AUV(BaseRobot):
+    """AUV form with different exploration speeds"""
+    def __init__(self, map_size, current_location, journey_log, current_day, exploration_boosts):
+        super().__init__(map_size, current_location, journey_log, current_day, exploration_boosts)
+        self.FORM_SPEEDS = {'mountain': 2.0, 'lake': 12.0, 'crater': 6.0}
+
+
+class Transformer:
+    """Manages robot transformations while preserving state"""
+
+    def __init__(self, map_size):
+        self.robot = Robot(
+            map_size=map_size,
+            current_location=Location(0, 0),
+            journey_log=[],
+            current_day=1,
+            exploration_boosts={'mountain': 1.0, 'lake': 1.0, 'crater': 1.0}
         )
-        path.extend(horizontal_path)
 
-        # Move vertically next
-        vertical_path, new_row_index = self._move_along_axis(
-            current=current_row_index,
-            target=target_row_index,
-            size=self.map_size.height,
-            axis='y',
-            fixed_coord=new_column_index
+    def transform(self, new_form: str):
+        """Transform into a new form (robot/drone/auv)"""
+        if new_form == "robot":
+            class_type = Robot
+        elif new_form == "drone":
+            class_type = Drone
+        elif new_form == "auv":
+            class_type = AUV
+        else:
+            raise ValueError("Invalid form")
+
+        # Preserve all state during transformation
+        self.robot = class_type(
+            map_size=self.robot.map_size,
+            current_location=self.robot.current_location,
+            journey_log=self.robot.journey_log,
+            current_day=self.robot.current_day,
+            exploration_boosts=self.robot.exploration_boosts
         )
-        path.extend(vertical_path)
 
-        return path, len(path) - 1
+    def run_mission(self, feature_names: list[str], geological_feature_location_dictionary: dict) -> None:
+            """
+            Determines the best form for the mission, transforms, and executes the mission.
+            Handles all state updates, printing, and journey logging.
+
+            Args:
+                feature_names (list[str]): List of feature names to explore in order.
+                geological_feature_location_dictionary (dict): Map from (row, col) to feature objects.
+
+            Returns:
+                None
+            """
+
+            # Preference order: robot > drone > auv
+            best_form = "robot"
+            best_days = float('inf')
+
+            for form in ["robot", "drone", "auv"]:
+                self.transform(form)
+                days = self.robot.simulate_mission(feature_names, geological_feature_location_dictionary)
+                if days < best_days or (days == best_days and ["robot", "drone", "auv"].index(form) < ["robot", "drone", "auv"].index(best_form)):
+                    best_days = days
+                    best_form = form
+
+            # Transform into the chosen form for the mission
+            self.transform(best_form)
+
+            if best_form == "robot":
+                print("no transformation")
+
+            elif best_form == "auv":
+                print(f"transform into an {best_form.upper()}")
+
+            elif best_form == "drone":
+                print(f"transform into a {best_form}")
+
+
+            # Build a mapping from feature name to feature object for quick lookup
+            feature_name_to_object = {feature.name: feature for feature in geological_feature_location_dictionary.values()}
+
+            for feature_name in feature_names:
+                feature = feature_name_to_object[feature_name]
+                start_location = self.robot.current_location
+                end_location = feature.location
+
+                # Check if already at the feature location
+                if start_location == end_location:
+                    # Already at the location: print "same location, explore ..."
+                    print(f"same location, explore {feature.feature_type} {feature.name}")
+                else:
+                    # Need to move: print "move from ... to ... then explore ..."
+                    print(f"move from {start_location} to {end_location} then explore {feature.feature_type} {feature.name}")
+                    self.robot.move_to(end_location, suppress_output=True)  # Move the robot (updates location and journey log)
+
+                # Explore the feature (updates boosts and journey log, but suppress internal print)
+                self.robot.explore_feature(feature, suppress_output=True)
+
+            # After the mission, always revert to regular robot form
+            self.transform("robot")
